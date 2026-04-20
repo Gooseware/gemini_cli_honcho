@@ -1,24 +1,57 @@
-/**
- * Placeholder fetch-memory script.
- * This will eventually query the Honcho API or MCP server.
- */
+if (process.env.SILENT !== "true") {
+    require('dotenv').config();
+}
+const { Honcho } = require("@honcho-ai/sdk");
 const fs = require("fs");
 
 async function main() {
-  const input = JSON.parse(fs.readFileSync(0, "utf-8"));
-  const prompt = input.lastMessage?.content || "";
-
-  // Logic to query Honcho based on the prompt would go here.
-  const relevantMemories = "Initial Honcho memory module scaffolded.";
-
-  const output = {
-    hookSpecificOutput: {
-      hookEventName: "BeforeAgent",
-      additionalContext: `[Honcho Memory Context]:\n${relevantMemories}`
+    let input;
+    try {
+        const stdinBuffer = fs.readFileSync(0, "utf-8");
+        input = JSON.parse(stdinBuffer);
+    } catch (e) {
+        input = {};
     }
-  };
 
-  process.stdout.write(JSON.stringify(output));
+    const prompt = input.lastMessage?.content || "";
+    
+    const honcho = new Honcho({
+        apiKey: process.env.HONCHO_API_KEY || "not_needed_for_local",
+        workspaceId: process.env.HONCHO_WORKSPACE_ID || "default",
+        baseURL: process.env.HONCHO_BASE_URL || "http://localhost:8000"
+    });
+
+    let relevantMemories = "No relevant memories found.";
+
+    try {
+        const user = await honcho.peer("user");
+        
+        if (prompt) {
+            const response = await user.chat(prompt);
+            relevantMemories = response || relevantMemories;
+        }
+    } catch (e) {
+        relevantMemories = "Honcho Connection unavailable. Skipping memory retrieval.";
+        process.stderr.write("Honcho Error: " + e.message + "\n");
+    }
+
+    const output = {
+        hookSpecificOutput: {
+            hookEventName: "BeforeAgent",
+            additionalContext: `[Honcho Memory Context]:\n${relevantMemories}`
+        }
+    };
+
+    process.stdout.write(JSON.stringify(output));
 }
 
-main().catch(console.error);
+main().catch(error => {
+    const fatalOutput = {
+        hookSpecificOutput: {
+            hookEventName: "BeforeAgent",
+            additionalContext: "[Honcho Memory Context]:\nError executing fetch-memory script."
+        }
+    };
+    process.stdout.write(JSON.stringify(fatalOutput));
+    process.stderr.write("Fatal Error: " + error.message + "\n");
+});
