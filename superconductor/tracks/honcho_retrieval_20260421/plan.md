@@ -7,8 +7,8 @@
 ## Phase 2: Core Implementation
 - [x] Task: Add necessary dependencies to the project a9695af
 - [x] Task: Implement Honcho client initialization in `scripts/fetch-memory.js` 80300e5
-- [ ] Task: Develop logic to search for relevant memories based on user input
-- [ ] Task: Format retrieved memories into the `additionalContext` block
+- [x] Task: Develop logic to search for relevant memories based on user input 80300e5
+- [x] Task: Format retrieved memories into the `additionalContext` block 80300e5
 
 ## Phase 3: Testing & Verification
 - [ ] Task: Manually verify the hook output with mock inputs
