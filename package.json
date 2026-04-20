@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/Gooseware/gemini_cli_honcho#readme",
   "dependencies": {
+    "@honcho-ai/sdk": "^2.1.1",
     "dotenv": "^17.4.2"
   }
 }
