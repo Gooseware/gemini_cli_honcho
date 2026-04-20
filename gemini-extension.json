@@ -1,0 +1,6 @@
+{
+  "name": "honcho-memory",
+  "version": "0.1.0",
+  "description": "Dynamic context injection from Honcho memory.",
+  "contextFileName": "GEMINI.md"
+}

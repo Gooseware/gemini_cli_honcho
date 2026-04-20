@@ -1,0 +1,14 @@
+{
+  "BeforeAgent": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "name": "inject-honcho-memory",
+          "type": "command",
+          "command": "node ${extensionPath}/scripts/fetch-memory.js"
+        }
+      ]
+    }
+  ]
+}
