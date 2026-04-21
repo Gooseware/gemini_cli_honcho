@@ -26,10 +26,14 @@ async function main() {
     try {
         const user = await honcho.peer("user");
         
-        if (prompt) {
-            const response = await user.chat(prompt);
-            relevantMemories = response || relevantMemories;
-        }
+        // Use context() which is a high-level retrieval method
+        // It's generally the most robust for getting immediate context
+        const context = await user.context({
+            searchQuery: prompt || undefined
+        });
+        
+        // PeerContext has a representation property which is a string
+        relevantMemories = context.representation || relevantMemories;
     } catch (e) {
         relevantMemories = "Honcho Connection unavailable. Skipping memory retrieval.";
         process.stderr.write("Honcho Error: " + e.message + "\n");
