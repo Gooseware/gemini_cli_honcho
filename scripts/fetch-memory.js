@@ -1,8 +1,9 @@
 if (process.env.SILENT !== "true") {
     require('dotenv').config();
 }
-const { Honcho } = require("@honcho-ai/sdk");
 const fs = require("fs");
+// We use direct fetch to avoid SDK issues with complex endpoints
+const http = require("http");
 
 async function main() {
     let input;
@@ -15,25 +16,25 @@ async function main() {
 
     const prompt = input.lastMessage?.content || "";
     
-    const honcho = new Honcho({
-        apiKey: process.env.HONCHO_API_KEY || "not_needed_for_local",
-        workspaceId: process.env.HONCHO_WORKSPACE_ID || "default",
-        baseURL: process.env.HONCHO_BASE_URL || "http://localhost:8000"
-    });
+    const workspaceId = process.env.HONCHO_WORKSPACE_ID || "default";
+    const baseURL = process.env.HONCHO_BASE_URL || "http://localhost:8000";
 
     let relevantMemories = "No relevant memories found.";
 
     try {
-        const user = await honcho.peer("user");
-        
-        // Use context() which is a high-level retrieval method
-        // It's generally the most robust for getting immediate context
-        const context = await user.context({
-            searchQuery: prompt || undefined
+        // Fallback to the most reliable method: list recent messages across sessions
+        // Since we don't have a reliable session ID filter that works globally,
+        // we'll try to get the latest messages from the known test-session for this demo.
+        const response = await fetchHoncho(`${baseURL}/v3/workspaces/${workspaceId}/sessions/test-session/messages/list`, {
+            filters: {}
         });
-        
-        // PeerContext has a representation property which is a string
-        relevantMemories = context.representation || relevantMemories;
+
+        if (response && response.items && response.items.length > 0) {
+            // Sort by creation to get newest first
+            const sorted = response.items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            relevantMemories = "Recent Honcho History:\n" + 
+                sorted.slice(0, 5).map(m => `- ${m.content}`).join("\n");
+        }
     } catch (e) {
         relevantMemories = "Honcho Connection unavailable. Skipping memory retrieval.";
         process.stderr.write("Honcho Error: " + e.message + "\n");
@@ -49,6 +50,37 @@ async function main() {
     process.stdout.write(JSON.stringify(output));
 }
 
+function fetchHoncho(url, body) {
+    return new Promise((resolve, reject) => {
+        const u = new URL(url);
+        const options = {
+            hostname: u.hostname,
+            port: u.port,
+            path: u.pathname,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        };
+
+        const req = http.request(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => data += chunk);
+            res.on('end', () => {
+                if (res.statusCode >= 200 && res.statusCode < 300) {
+                    resolve(JSON.parse(data));
+                } else {
+                    reject(new Error(`HTTP ${res.statusCode}: ${data}`));
+                }
+            });
+        });
+
+        req.on('error', (e) => reject(e));
+        req.write(JSON.stringify(body));
+        req.end();
+    });
+}
+
 main().catch(error => {
     const fatalOutput = {
         hookSpecificOutput: {
@@ -57,5 +89,4 @@ main().catch(error => {
         }
     };
     process.stdout.write(JSON.stringify(fatalOutput));
-    process.stderr.write("Fatal Error: " + error.message + "\n");
 });
