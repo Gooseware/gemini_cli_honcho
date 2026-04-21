@@ -2,7 +2,6 @@ if (process.env.SILENT !== "true") {
     require('dotenv').config();
 }
 const fs = require("fs");
-// We use direct fetch to avoid SDK issues with complex endpoints
 const http = require("http");
 
 async function main() {
@@ -18,15 +17,17 @@ async function main() {
     
     const workspaceId = process.env.HONCHO_WORKSPACE_ID || "default";
     const baseURL = process.env.HONCHO_BASE_URL || "http://localhost:8000";
+    const peerId = process.env.HONCHO_PEER_ID || "hermes-agent";
 
     let relevantMemories = "No relevant memories found.";
 
     try {
-        // Fallback to the most reliable method: list recent messages across sessions
-        // Since we don't have a reliable session ID filter that works globally,
-        // we'll try to get the latest messages from the known test-session for this demo.
-        const response = await fetchHoncho(`${baseURL}/v3/workspaces/${workspaceId}/sessions/test-session/messages/list`, {
-            filters: {}
+        // Retrieve the latest messages for the peer across the workspace
+        // This uses the broad list endpoint which is robust for local installations
+        const response = await fetchHoncho(`${baseURL}/v3/workspaces/${workspaceId}/messages/list`, {
+            filters: {
+                "peer_id": peerId
+            }
         });
 
         if (response && response.items && response.items.length > 0) {
