@@ -1,7 +1,9 @@
 if (process.env.SILENT !== "true") {
-    require('dotenv').config();
+    const path = require('path');
+    require('dotenv').config({ path: path.join(__dirname, '../.env') });
 }
 const fs = require("fs");
+// We use direct fetch to avoid SDK issues with complex endpoints
 const http = require("http");
 
 async function main() {
@@ -17,17 +19,22 @@ async function main() {
     
     const workspaceId = process.env.HONCHO_WORKSPACE_ID || "default";
     const baseURL = process.env.HONCHO_BASE_URL || "http://localhost:8000";
-    const peerId = process.env.HONCHO_PEER_ID || "hermes-agent";
 
     let relevantMemories = "No relevant memories found.";
 
     try {
-        // Retrieve the latest messages for the peer across the workspace
-        // This uses the broad list endpoint which is robust for local installations
-        const response = await fetchHoncho(`${baseURL}/v3/workspaces/${workspaceId}/messages/list`, {
-            filters: {
-                "peer_id": peerId
-            }
+        // 1. List sessions in workspace
+        const sessionsResponse = await fetchHoncho(`${baseURL}/v3/workspaces/${workspaceId}/sessions/list`, {});
+        let sessionId = "test-session";
+        if (sessionsResponse && sessionsResponse.items && sessionsResponse.items.length > 0) {
+            // Sort sessions by creation to find the newest one
+            const sortedSessions = sessionsResponse.items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            sessionId = sortedSessions[0].id;
+        }
+
+        // 2. Fetch messages from the active session
+        const response = await fetchHoncho(`${baseURL}/v3/workspaces/${workspaceId}/sessions/${sessionId}/messages/list`, {
+            filters: {}
         });
 
         if (response && response.items && response.items.length > 0) {
